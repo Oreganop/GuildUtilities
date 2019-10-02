@@ -49,9 +49,44 @@ local function getInventories(inventory, first_bag, end_bag)
     return inventory;
 end
 
+local function getGuildRoster(guild_roster) 
+    if guild_roster == nil then 
+        guild_roster = {}
+    end
+
+
+    for index=0, GetNumGuildMembers() do 
+        local name,
+        rank,
+        rank_index,
+        level,
+        class,
+        zone,
+        note = GetGuildRosterInfo(index);
+        if name ~= nil then
+            print(name,
+                rank,
+                rank_index,
+                level,
+                class,
+                zone,
+                note);
+            guild_roster[index] = {
+                name = name,
+                rank = rank_index,
+                level = level,
+                class = class,
+                note = note
+            }
+        end
+    end
+    return guild_roster
+end
+
 local function eventHandler(self, event, isInitialLogin, isReloadingUI) 
     if event == 'PLAYER_ENTERING_WORLD' then 
         Guild_Bank = getInventories({}, 0, 1);
+        Guild_Roster = getGuildRoster();
 
         if isInitialLogin or isReloadingUI then
         else -- When Zoning....
