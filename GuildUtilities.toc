@@ -1,0 +1,8 @@
+## Interface: 11302
+## Title: Guild Utilities
+## Notes: Guild Management Utilities
+## Author: Garrett Swann & Herbs and Spices
+## SavedVariables: Guild_Roster
+## SavedVariablesPerCharacter: Guild_Bank
+
+GuildUtilities.lua
