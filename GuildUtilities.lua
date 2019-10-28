@@ -54,6 +54,17 @@ local function getGuildRoster(guild_roster)
         guild_roster = {}
     end
 
+    local realm = GetRealmName();
+    local guild_name, _, _, _ = GetGuildInfo("player")
+
+    if guild_roster[realm] == nil then
+        guild_roster[realm] = {}
+    end
+    if guild_roster[realm][guild_name] == nil then
+        guild_roster[realm][guild_name] = {}
+    end
+
+    local current_timestamp = date("%Y-%m-%d:%H:%M:%S");
 
     for index=0, GetNumGuildMembers() do 
         local name,
@@ -64,20 +75,39 @@ local function getGuildRoster(guild_roster)
         zone,
         note = GetGuildRosterInfo(index);
         if name ~= nil then
-            print(name,
-                rank,
-                rank_index,
-                level,
-                class,
-                zone,
-                note);
-            guild_roster[index] = {
+            name = string.sub(name, 0, -(string.len(realm) + 2))
+            
+            if guild_roster[realm][guild_name][name] == nil then
+                guild_roster[realm][guild_name][name] = {}
+            end
+            local init = guild_roster[realm][guild_name][name].created == nil;
+
+
+            guild_roster[realm][guild_name][name] = {
                 name = name,
+                index = index,
                 rank = rank_index,
                 level = level,
                 class = class,
-                note = note
+                note = note,
+                created = init and current_timestamp or guild_roster[realm][guild_name][name].created,
+                updated = current_timestamp,
+                removed = nil
             }
+
+            -- Log New Players
+            if init then
+                print(name, 'has joined the guild since last checked.')
+            end
+        end
+
+    end
+
+    -- Some find players that left.
+    for player_name,player_data in pairs(guild_roster[realm][guild_name]) do
+        if not player_data.removed and player_data.updated ~= current_timestamp then
+            print(player_name, 'has left the guild since last checked.')
+            guild_roster[realm][guild_name][player_name].removed = true
         end
     end
     return guild_roster
@@ -86,7 +116,7 @@ end
 local function eventHandler(self, event, isInitialLogin, isReloadingUI) 
     if event == 'PLAYER_ENTERING_WORLD' then 
         Guild_Bank = getInventories({}, 0, 1);
-        Guild_Roster = getGuildRoster();
+        Guild_Roster = getGuildRoster(Guild_Roster);
 
         if isInitialLogin or isReloadingUI then
         else -- When Zoning....
