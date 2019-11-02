@@ -31,7 +31,7 @@ local function getInventories(inventory, first_bag, end_bag)
                     _, --class_id,
                     sub_class_id = GetItemInfo(link);
 
-                if inventory[name] then
+                if inventory[name] ~= nil then
                     inventory[name]['count'] = inventory[name]['count'] + count;
                 else
                     inventory[name] = {
@@ -50,21 +50,21 @@ local function getInventories(inventory, first_bag, end_bag)
 end
 
 local function getGuildRoster(guild_roster) 
-    if guild_roster == nil then 
-        guild_roster = {}
-    end
-
     local realm = GetRealmName();
     local guild_name, _, _, _ = GetGuildInfo("player")
+    local current_timestamp = date("%Y-%m-%d:%H:%M:%S");
 
-    if guild_roster[realm] == nil then
+    -- Default some things for security.
+    if not guild_roster then 
+        guild_roster = {}
+    end
+    if not guild_roster[realm] then
         guild_roster[realm] = {}
     end
-    if guild_roster[realm][guild_name] == nil then
+
+    if not guild_roster[realm][guild_name] then
         guild_roster[realm][guild_name] = {}
     end
-
-    local current_timestamp = date("%Y-%m-%d:%H:%M:%S");
 
     for index=0, GetNumGuildMembers() do 
         local name,
@@ -116,7 +116,9 @@ end
 local function eventHandler(self, event, isInitialLogin, isReloadingUI) 
     if event == 'PLAYER_ENTERING_WORLD' then 
         Guild_Bank = getInventories({}, 0, 1);
-        Guild_Roster = getGuildRoster(Guild_Roster);
+        if not isInitialLogin then 
+            Guild_Roster = getGuildRoster(Guild_Roster);
+        end 
 
         if isInitialLogin or isReloadingUI then
         else -- When Zoning....
