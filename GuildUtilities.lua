@@ -3,6 +3,10 @@ Gobals we manage:
     [Guild_Roster, Guild_Bank]
 --]]
 
+local function getCanonicalPlayerName(name_hyphen_realm, realm) 
+    return string.sub(name_hyphen_realm, 0, -(string.len(realm) + 2))
+end
+
 local function getInventories(inventory, first_bag, end_bag) 
     if inventory == nil then
         inventory = {}
@@ -30,18 +34,19 @@ local function getInventories(inventory, first_bag, end_bag)
                     sell_price,
                     _, --class_id,
                     sub_class_id = GetItemInfo(link);
-
-                if inventory[name] ~= nil then
-                    inventory[name]['count'] = inventory[name]['count'] + count;
-                else
-                    inventory[name] = {
-                        item_rarity = rarity
-                        ,item_type = itype
-                        ,count = count
-                        ,stack_count = stack_count
-                        ,equip_location = equip_location
-                        ,sell_price = sell_price
-                    }
+                if name ~= nil then
+                    if inventory[name] ~= nil then
+                        inventory[name]['count'] = inventory[name]['count'] + count;
+                    else
+                        inventory[name] = {
+                            item_rarity = rarity
+                            ,item_type = itype
+                            ,count = count
+                            ,stack_count = stack_count
+                            ,equip_location = equip_location
+                            ,sell_price = sell_price
+                        }
+                    end
                 end
             end
         end
@@ -52,7 +57,7 @@ end
 local function getGuildRoster(guild_roster) 
     local realm = GetRealmName();
     local guild_name, _, _, _ = GetGuildInfo("player")
-    local current_timestamp = date("%Y-%m-%d:%H:%M:%S");
+    local current_timestamp = date("%Y-%m-%d %H:%M:%S");
 
     -- Default some things for security.
     if not guild_roster then 
@@ -75,7 +80,7 @@ local function getGuildRoster(guild_roster)
         zone,
         note = GetGuildRosterInfo(index);
         if name ~= nil then
-            name = string.sub(name, 0, -(string.len(realm) + 2))
+            name = getCanonicalPlayerName(name, realm)
             
             if guild_roster[realm][guild_name][name] == nil then
                 guild_roster[realm][guild_name][name] = {}
@@ -129,3 +134,45 @@ end
 local GuildUtilities = CreateFrame('Frame', nil, UIParent);
 GuildUtilities:RegisterEvent('PLAYER_ENTERING_WORLD');
 GuildUtilities:SetScript('OnEvent', eventHandler);
+
+
+hooksecurefunc(GameTooltip, "Show", function(self, one, two, three)
+    --Getting started:
+    -- https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/225832-how-to-edit-a-certain-tooltip-where-do-i-begin
+    if _G["GameTooltipTextLeft1"]:GetText() ~= 'Guild Member Options' then
+        return -- Not the tooltip we want.
+    end
+
+    if GameTooltip:NumLines() > 2 then
+        return -- We've already edited. Do not double tap.
+    end
+
+
+    local cursor = GetMouseFocus();
+
+    local realm = GetRealmName();
+    local guild_name, _, _, _ = GetGuildInfo("player")
+    local name = getCanonicalPlayerName(GetGuildRosterInfo(cursor.guildIndex), realm)
+
+    local function getCanonicalLastOnline(years, months, days, hours)
+        if years == nil then
+            return 'Now'
+        end
+        return hours .. ' H, ' 
+            .. (days > 0 and days .. ' D, ' or '')
+            .. (months > 0 and months .. ' M, ' or '') 
+            .. (years > 0 and years .. ' Y, ' or '') 
+    end
+
+    GameTooltip:AddLine(name)
+    GameTooltip:AddLine('Member since: '..Guild_Roster[realm][guild_name][name].created)
+    GameTooltip:AddLine('Last seen on: '..
+        getCanonicalLastOnline(GetGuildRosterLastOnline(cursor.guildIndex))
+    )
+    --[[
+    for key,value in pairs() do
+        print(key,value)
+    end
+    print(GetMouseFocus().userdata)
+    ]]
+end)
