@@ -1,4 +1,4 @@
-## Interface: 11302
+## Interface: 11508, 11509
 ## Title: Guild Utilities
 ## Notes: Guild Management Utilities
 ## Author: Garrett Swann & Herbs and Spices
