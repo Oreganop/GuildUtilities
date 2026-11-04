@@ -2,6 +2,7 @@
 ## Title: Guild Utilities
 ## Notes: Guild Management Utilities
 ## Author: Garrett Swann & Herbs and Spices
+## Version: @project-version@
 ## SavedVariables: Guild_Roster, GuildUtilities_Loot
 ## SavedVariablesPerCharacter: Guild_Bank
 

@@ -1,0 +1,4 @@
+package-as: GuildUtilities
+
+ignore:
+  - tests
