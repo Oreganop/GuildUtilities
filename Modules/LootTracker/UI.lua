@@ -16,6 +16,7 @@ local UI = {}
 Loot.UI = UI
 
 local WIDTH, HEIGHT = 680, 500
+local LIVE_REFRESH_SECONDS = 10
 local NUM_ROWS = 18
 local STAR = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_1"
 local MIN_QUALITY_STEPS = { -1, 0, 1, 2, 3, 4 } -- -1 = any
@@ -69,10 +70,11 @@ local COLUMNS = {
     },
     totals = {
         favoriteColumn(),
-        { key = "name", label = "Item", width = 260, text = itemText },
+        { key = "name", label = "Item", width = 220, text = itemText },
         { key = "player", label = "Player", width = 130, text = playerText },
         { key = "count", label = "Amount", width = 70, justify = "RIGHT", text = function(row) return row.count end },
         { key = "pickups", label = "Pickups", width = 70, justify = "RIGHT", text = function(row) return row.pickups end },
+        { key = "perHour", label = "Per hour", width = 80, justify = "RIGHT", text = function(row) return Loot.FormatRate(row.perHour) end },
     },
 }
 
@@ -113,6 +115,9 @@ local function showSessionTooltip(owner)
     GameTooltip:SetOwner(owner, "ANCHOR_BOTTOM")
     GameTooltip:SetText(Loot:DescribeSession(s), 1, 1, 1, 1, true)
     GameTooltip:AddLine(string.format("%d pickups, recorded by %s on %s", #s.entries, s.recorder or "?", s.realm or "?"))
+    GameTooltip:AddDoubleLine("Started", Util.FormatTimestamp(s.started), nil, nil, nil, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Stopped", s.ended and Util.FormatTimestamp(s.ended) or "Recording", nil, nil, nil, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Duration", Util.FormatDuration(Loot:SessionDuration(s)), nil, nil, nil, 1, 1, 1)
     local names = {}
     for name, class in pairs(s.members) do
         table.insert(names, Util.ClassColored(name, class))
@@ -167,7 +172,7 @@ function UI.Refresh()
     frame.session:SetText(sessionLabel())
     frame.prev:SetEnabled((session_index or #Loot:Sessions()) > 0)
     frame.next:SetEnabled(session_index ~= nil)
-    frame.endButton:SetEnabled(Loot:Current() ~= nil)
+    frame.stopButton:SetEnabled(Loot:Current() ~= nil)
     frame.deleteButton:SetEnabled(selectedSession() ~= nil)
     frame.logTab:SetEnabled(s.view ~= "log")
     frame.totalsTab:SetEnabled(s.view ~= "totals")
@@ -233,6 +238,8 @@ local function onRowEnter(owner, row)
     if row.pickups then
         GameTooltip:AddDoubleLine("First", Util.FormatTimestamp(row.first))
         GameTooltip:AddDoubleLine("Last", Util.FormatTimestamp(row.last))
+        GameTooltip:AddDoubleLine("Time present", Util.FormatDuration(row.seconds))
+        GameTooltip:AddDoubleLine("Per hour", Loot.FormatRate(row.perHour))
     elseif row.zone then
         GameTooltip:AddDoubleLine("Zone", row.zone)
     end
@@ -253,11 +260,36 @@ StaticPopupDialogs["GUILDUTILITIES_DELETE_LOOT_SESSION"] = {
     preferredIndex = 3,
 }
 
+function UI.Start()
+    session_index = nil
+    local s = Loot:StartSession(true)
+    GU.Print("Started loot session #" .. s.id .. ".")
+end
+
+function UI.Stop()
+    local s = Loot:Current()
+    if s then
+        Loot:EndSession()
+        GU.Print(string.format("Stopped loot session #%d after %s.", s.id, Util.FormatDuration(Loot:SessionDuration(s))))
+    end
+end
+
 local function createFrame()
     frame = Widgets.CreateWindow("GuildUtilitiesLootFrame", "Loot Tracker", WIDTH, HEIGHT)
     frame:SetScript("OnShow", UI.Refresh)
+    -- Keep durations and per-hour rates current while recording.
+    local since_refresh = 0
+    frame:SetScript("OnUpdate", function(_, elapsed)
+        since_refresh = since_refresh + elapsed
+        if since_refresh >= LIVE_REFRESH_SECONDS then
+            since_refresh = 0
+            if Loot:Current() then
+                UI.Refresh()
+            end
+        end
+    end)
 
-    -- Session row: < label > ... New End Delete
+    -- Session row: < label > ... Start Stop Delete
     frame.prev = Widgets.CreateButton(frame, "<", 26, function() stepSession(-1) end)
     frame.prev:SetPoint("TOPLEFT", 18, -38)
     frame.session = Widgets.CreateLabel(frame, "", "GameFontHighlight")
@@ -280,15 +312,14 @@ local function createFrame()
         end
     end)
     frame.deleteButton:SetPoint("TOPRIGHT", -18, -38)
-    frame.endButton = Widgets.CreateButton(frame, "End", 50, function() Loot:EndSession() end)
-    frame.endButton:SetPoint("RIGHT", frame.deleteButton, "LEFT", -4, 0)
-    Widgets.SetTooltip(frame.endButton, "End session", "Stop recording until a new group forms or you start a new session.")
-    frame.newButton = Widgets.CreateButton(frame, "New", 50, function()
-        session_index = nil
-        Loot:StartSession()
-    end)
-    frame.newButton:SetPoint("RIGHT", frame.endButton, "LEFT", -4, 0)
-    Widgets.SetTooltip(frame.newButton, "New session", "Stash the current session and start a fresh one, e.g. between raids with the same group.")
+    frame.stopButton = Widgets.CreateButton(frame, "Stop", 50, UI.Stop)
+    frame.stopButton:SetPoint("RIGHT", frame.deleteButton, "LEFT", -4, 0)
+    Widgets.SetTooltip(frame.stopButton, "Stop session", "Stop recording until a new group forms or you start a session.")
+    frame.startButton = Widgets.CreateButton(frame, "Start", 50, UI.Start)
+    frame.startButton:SetPoint("RIGHT", frame.stopButton, "LEFT", -4, 0)
+    Widgets.SetTooltip(frame.startButton, "Start session",
+        "Stash the current session and start recording a new one, with or without a group.",
+        "It keeps running through group changes until you stop it.")
 
     -- Filter row: [Log][Totals]  Player [  ]  Item [  ]  [Quality]  [x] Favorites only  [x] Pin favorites
     frame.logTab = Widgets.CreateButton(frame, "Log", 56, function() setView("log") end)
@@ -364,8 +395,8 @@ Loot.changed:Register(UI.Refresh)
 
 local HELP = {
     "/loottracker - show or hide the loot window",
-    "/loottracker new - stash the current session and start a new one",
-    "/loottracker end - stop recording the current session",
+    "/loottracker start - stash the current session and start recording a new one (no group needed)",
+    "/loottracker stop - stop recording the current session",
     "/loottracker fav [item link] - toggle an item as a favorite",
 }
 
@@ -375,13 +406,10 @@ SlashCmdList["GUILDUTILITIES_LOOTTRACKER"] = function(msg)
     command = string.lower(command or "")
     if command == "" then
         UI.Toggle()
-    elseif command == "new" then
-        session_index = nil
-        Loot:StartSession()
-        GU.Print("Started loot session #" .. Loot:Current().id)
-    elseif command == "end" then
-        Loot:EndSession()
-        GU.Print("Loot session ended.")
+    elseif command == "start" or command == "new" then
+        UI.Start()
+    elseif command == "stop" or command == "end" then
+        UI.Stop()
     elseif command == "fav" then
         local found = false
         for item_id in string.gmatch(rest, "item:(%d+)") do

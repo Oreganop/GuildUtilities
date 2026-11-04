@@ -10,6 +10,7 @@ GuildUtilities_Loot = {
     sessions = {  -- oldest first
         {
             id, started, ended (epoch seconds; ended is nil while recording),
+            manual (started with /loottracker start; ignores group changes),
             recorder, realm, raid,
             zones = { "Molten Core", ... },  -- where loot was picked up
             members = { [name] = classFile },
@@ -134,7 +135,8 @@ function Loot:UpdateMembers()
     end
 end
 
-function Loot:StartSession()
+-- Group sessions start/stop with the group; manual ones run until stopped, grouped or not.
+function Loot:StartSession(manual)
     local now = time()
     local current = self:Current()
     if current then
@@ -145,8 +147,9 @@ function Loot:StartSession()
         id = d.next_id,
         started = now,
         recorder = UnitName("player"),
-        realm = GetRealmName(),
+        realm = Util.RealmKey(),
         raid = IsInRaid() and true or false,
+        manual = manual and true or nil,
         zones = {},
         members = {},
         entries = {},
@@ -167,6 +170,10 @@ function Loot:EndSession()
         s.ended = time()
         notify()
     end
+end
+
+function Loot:SessionDuration(s)
+    return (s.ended or time()) - s.started
 end
 
 function Loot:DeleteSession(s)
@@ -199,6 +206,7 @@ function Loot:Record(player, link, count)
         zone = zone,
     }
     table.insert(s.entries, entry)
+    s.members[player] = s.members[player] or true
     Util.InsertUnique(s.zones, zone)
     notify()
     return entry
@@ -209,13 +217,16 @@ end
 local was_grouped = false
 local logged_in = false
 
--- A session starts when a group forms and ends when it disbands.
+-- A group session starts when a group forms and ends when it disbands.
 function Loot:CheckGroup()
     if not logged_in then
         return -- Roster events can arrive before PLAYER_LOGIN; OnLogin decides then.
     end
     local grouped = IsInGroup()
-    if grouped and not was_grouped then
+    local current = self:Current()
+    if current and current.manual then
+        -- Manual sessions only end on /loottracker stop.
+    elseif grouped and not was_grouped then
         self:StartSession()
     elseif not grouped and was_grouped then
         self:EndSession()

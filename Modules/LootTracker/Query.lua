@@ -10,7 +10,10 @@ GU.Loot = GU.Loot or {}
 local Loot = GU.Loot
 
 -- Columns whose sort reads best largest/newest first when first clicked.
-Loot.DESCENDING_FIRST = { fav = true, count = true, t = true, pickups = true, quality = true }
+Loot.DESCENDING_FIRST = { fav = true, count = true, t = true, pickups = true, quality = true, perHour = true }
+
+-- Rates over less time than this are too noisy to show.
+local MIN_RATE_SECONDS = 60
 
 local function fillQuality(entry)
     if entry.quality == nil and entry.link then
@@ -62,7 +65,8 @@ opts = {
     sortKey, sortAsc, pinFavorites,
 }
 Log rows: fav, player, class, name, link, itemID, quality, count, t, zone, session
-Totals rows, one per (item, player): fav, player, class, name, link, itemID, quality, count, pickups, first, last
+Totals rows, one per (item, player): fav, player, class, name, link, itemID, quality, count, pickups, first, last,
+    seconds (time the player was in the queried sessions), perHour (count per hour of that time)
 --]]
 function Loot:Query(opts)
     local sessions = opts.session and { opts.session } or self:Sessions()
@@ -104,8 +108,34 @@ function Loot:Query(opts)
         end
     end
 
+    if opts.view == "totals" then
+        self:AddRates(rows, sessions)
+    end
+
     local key = opts.sortKey or (opts.view == "totals" and "count" or "t")
     return Loot.SortRows(rows, key, opts.sortAsc, opts.pinFavorites)
+end
+
+-- Average amount per hour, over the sessions each row's player took part in.
+function Loot:AddRates(rows, sessions)
+    local present = {}
+    for _, s in ipairs(sessions) do
+        local duration = self:SessionDuration(s)
+        for name in pairs(s.members) do
+            present[name] = (present[name] or 0) + duration
+        end
+    end
+    for _, row in ipairs(rows) do
+        row.seconds = present[row.player] or 0
+        row.perHour = row.seconds >= MIN_RATE_SECONDS and row.count * 3600 / row.seconds or nil
+    end
+end
+
+function Loot.FormatRate(perHour)
+    if not perHour then
+        return "-"
+    end
+    return string.format(perHour >= 10 and "%.0f" or "%.1f", perHour)
 end
 
 local function favorite(r)
@@ -129,6 +159,8 @@ local CSV_COLUMNS = {
         { label = "Player", value = function(r) return r.player end },
         { label = "Amount", value = function(r) return r.count end },
         { label = "Pickups", value = function(r) return r.pickups end },
+        { label = "PerHour", value = function(r) return r.perHour and string.format("%.2f", r.perHour) end },
+        { label = "Hours", value = function(r) return string.format("%.2f", r.seconds / 3600) end },
         { label = "First", value = function(r) return Util.FormatTimestamp(r.first) end },
         { label = "Last", value = function(r) return Util.FormatTimestamp(r.last) end },
         { label = "ItemID", value = function(r) return r.itemID end },
@@ -139,12 +171,13 @@ function Loot:ToCSV(rows, view)
     return Util.ToCSV(CSV_COLUMNS[view] or CSV_COLUMNS.log, rows)
 end
 
--- "#12 Molten Core, Onyxia's Lair - 11/04 20:01-23:15 (raid)"
+-- "#12 Molten Core, Onyxia's Lair - 11/04 20:01-23:15, 3h 14m (raid)"
 function Loot:DescribeSession(s)
     local zones = #s.zones > 0 and table.concat(s.zones, ", ") or "No loot yet"
     local span = Util.FormatTimestamp(s.started, "%m/%d %H:%M") .. "-"
         .. (s.ended and Util.FormatTimestamp(s.ended, "%H:%M") or "now")
-    local kind = s.raid and "raid" or "party"
+        .. ", " .. Util.FormatDuration(self:SessionDuration(s))
+    local kind = s.manual and "manual" or s.raid and "raid" or "party"
     if not s.ended then
         kind = kind .. ", recording"
     end

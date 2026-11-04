@@ -58,6 +58,17 @@ function Util.ClassColored(name, class)
     return "|c" .. hex .. name .. "|r"
 end
 
+-- "1h 05m", "12m", "45s"
+function Util.FormatDuration(seconds)
+    seconds = math.max(0, math.floor(seconds or 0))
+    if seconds >= 3600 then
+        return string.format("%dh %02dm", math.floor(seconds / 3600), math.floor(seconds % 3600 / 60))
+    elseif seconds >= 60 then
+        return string.format("%dm", math.floor(seconds / 60))
+    end
+    return seconds .. "s"
+end
+
 function Util.InsertUnique(list, value)
     for _, v in ipairs(list) do
         if v == value then
