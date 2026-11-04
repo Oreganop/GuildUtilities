@@ -17,7 +17,7 @@ local ROSTER_THROTTLE = 60
 local last_roster_scan = 0
 
 function Roster.GetGuildRoster(guild_roster)
-    local realm = GetRealmName();
+    local realm = Util.RealmKey();
     local guild_name = GetGuildInfo("player")
     local num_members = GetNumGuildMembers()
     if not guild_name or not num_members or num_members == 0 then
@@ -89,7 +89,7 @@ function Roster.GetGuildRoster(guild_roster)
 end
 
 function Roster.GetMember(name)
-    local realm = GetRealmName();
+    local realm = Util.RealmKey();
     local guild_name = GetGuildInfo("player")
     local guild = guild_name and Guild_Roster and Guild_Roster[realm] and Guild_Roster[realm][guild_name]
     return guild and name and guild[name]

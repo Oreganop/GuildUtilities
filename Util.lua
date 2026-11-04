@@ -7,7 +7,17 @@ local addonName, GU = ...
 local Util = {}
 GU.Util = Util
 
+-- Key for per-realm saved data. WoW Forever has no realm names, so GetRealmName() may be empty.
+function Util.RealmKey()
+    local realm = GetRealmName and GetRealmName()
+    if not realm or realm == "" then
+        return "Default"
+    end
+    return realm
+end
+
 -- Names come back as "Name-Realm" in some APIs (realm without spaces); drop our own realm.
+-- Names without a realm suffix (e.g. on WoW Forever) are returned unchanged.
 function Util.CanonicalPlayerName(name)
     if not name then
         return nil
