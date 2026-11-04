@@ -5,4 +5,9 @@
 ## SavedVariables: Guild_Roster
 ## SavedVariablesPerCharacter: Guild_Bank
 
-GuildUtilities.lua
+Core.lua
+Util.lua
+
+Modules\Bank.lua
+Modules\Roster.lua
+
