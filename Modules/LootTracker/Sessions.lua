@@ -193,7 +193,7 @@ function Loot:Record(player, link, count)
     if not s then
         return nil
     end
-    local _, _, quality = GetItemInfo(link)
+    local _, _, quality = GU.Compat.GetItemInfo(link)
     local zone = currentZone()
     local entry = {
         t = time(),

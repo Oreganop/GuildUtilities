@@ -88,3 +88,10 @@ function Compat.GetContainerItem(bag, slot)
     local _, count, _, _, _, _, link = GetContainerItemInfo(bag, slot)
     return count, link
 end
+
+function Compat.GetItemInfo(item)
+    if C_Item and C_Item.GetItemInfo then
+        return C_Item.GetItemInfo(item)
+    end
+    return GetItemInfo(item)
+end

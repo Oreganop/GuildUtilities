@@ -415,7 +415,7 @@ SlashCmdList["GUILDUTILITIES_LOOTTRACKER"] = function(msg)
         for item_id in string.gmatch(rest, "item:(%d+)") do
             item_id = tonumber(item_id)
             Loot:ToggleFavorite(item_id)
-            GU.Print((GetItemInfo(item_id) or ("item " .. item_id)) .. (Loot:IsFavorite(item_id) and " is now a favorite." or " is no longer a favorite."))
+            GU.Print((GU.Compat.GetItemInfo(item_id) or ("item " .. item_id)) .. (Loot:IsFavorite(item_id) and " is now a favorite." or " is no longer a favorite."))
             found = true
         end
         if not found then

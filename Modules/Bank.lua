@@ -30,7 +30,7 @@ function Bank.GetInventories(inventory, first_bag, end_bag)
                     stack_count,
                     equip_location,
                     _, --icon,
-                    sell_price = GetItemInfo(link);
+                    sell_price = Compat.GetItemInfo(link);
                 if name ~= nil then
                     if inventory[name] ~= nil then
                         inventory[name]['count'] = inventory[name]['count'] + count;

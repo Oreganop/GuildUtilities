@@ -17,7 +17,7 @@ local MIN_RATE_SECONDS = 60
 
 local function fillQuality(entry)
     if entry.quality == nil and entry.link then
-        local _, _, quality = GetItemInfo(entry.link)
+        local _, _, quality = GU.Compat.GetItemInfo(entry.link)
         entry.quality = quality
     end
     return entry.quality
