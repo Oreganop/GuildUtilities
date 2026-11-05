@@ -57,6 +57,11 @@ local row = {
 GameTooltip:SetOwner(row); GameTooltip:AddLine("Alice")
 GameTooltip:Show()
 check(lines() == "Alice|Member since: " .. g.Alice.created .. "|Last seen on: Now", "communities tooltip gets join info")
+GameTooltip:Show()
+check(GameTooltip:NumLines() == 3, "repeated Show() doesn't add lines twice")
+GameTooltip:SetOwner(row); GameTooltip:AddLine("Alice")
+GameTooltip:Show()
+check(GameTooltip:NumLines() == 3, "lines added again after the tooltip is cleared")
 clubType = Enum.ClubType.Character
 GameTooltip:SetOwner(row); GameTooltip:AddLine("Alice")
 GameTooltip:Show()

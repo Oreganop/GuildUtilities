@@ -165,13 +165,18 @@ local function communitiesGuildMember(tooltip)
     return info.name, info.lastOnlineYear, info.lastOnlineMonth, info.lastOnlineDay, info.lastOnlineHour
 end
 
-local adding = false
+-- Set once we've added our lines; Show() can run several times before the tooltip is cleared.
+local added = false
+
+GameTooltip:HookScript("OnTooltipCleared", function()
+    added = false
+end)
 
 hooksecurefunc(GameTooltip, "Show", function(self)
     --Getting started:
     -- https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/225832-how-to-edit-a-certain-tooltip-where-do-i-begin
-    if adding then
-        return -- Our own Show() below.
+    if added then
+        return -- Already added, or our own Show() below.
     end
 
     local communities = false
@@ -191,7 +196,6 @@ hooksecurefunc(GameTooltip, "Show", function(self)
     end
     self:AddLine('Member since: '..entry.created)
     self:AddLine('Last seen on: '..getCanonicalLastOnline(years, months, days, hours))
-    adding = true
+    added = true
     self:Show()
-    adding = false
 end)

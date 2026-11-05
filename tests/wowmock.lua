@@ -43,7 +43,8 @@ function Widget:SetID(id) self._id = id end
 function Widget:GetID() return self._id end
 function Widget:NumLines() return self._lines or 0 end
 function Widget:AddLine(t) self._lines = (self._lines or 0) + 1; self._text_lines = self._text_lines or {}; table.insert(self._text_lines, t) end
-function Widget:SetOwner(o) self._owner = o; self._lines = 0; self._text_lines = {} end
+function Widget:ClearLines() self._lines = 0; self._text_lines = {}; if self._scripts.OnTooltipCleared then self._scripts.OnTooltipCleared(self) end end
+function Widget:SetOwner(o) self._owner = o; self:ClearLines() end
 function Widget:GetOwner() return self._owner end
 
 function CreateFrame(kind, name, parent, template)
