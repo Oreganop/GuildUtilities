@@ -42,7 +42,9 @@ function Widget:Click(btn) if self._scripts.OnClick then self._scripts.OnClick(s
 function Widget:SetID(id) self._id = id end
 function Widget:GetID() return self._id end
 function Widget:NumLines() return self._lines or 0 end
-function Widget:AddLine() self._lines = (self._lines or 0) + 1 end
+function Widget:AddLine(t) self._lines = (self._lines or 0) + 1; self._text_lines = self._text_lines or {}; table.insert(self._text_lines, t) end
+function Widget:SetOwner(o) self._owner = o; self._lines = 0; self._text_lines = {} end
+function Widget:GetOwner() return self._owner end
 
 function CreateFrame(kind, name, parent, template)
   local w = Widget.new(kind, name, parent)
@@ -57,7 +59,12 @@ UISpecialFrames = {}
 SlashCmdList = {}
 StaticPopupDialogs = {}
 function StaticPopup_Show(which, ...) MOCK.popup = which; return {} end
-function hooksecurefunc(a, b, c) end
+function hooksecurefunc(a, b, c)
+  if type(a) == "table" then
+    local old = a[b]
+    a[b] = function(...) local r = old(...); c(...); return r end
+  end
+end
 function print(...) local t = {} for i = 1, select("#", ...) do t[#t+1] = tostring((select(i, ...))) end MOCK.printed[#MOCK.printed+1] = table.concat(t, " ") end
 DEFAULT_CHAT_FRAME = { AddMessage = function(self, m) print(m) end }
 function GetTime() return MOCK.gametime end
@@ -78,6 +85,9 @@ MOCK.roster = {}
 function IsInGuild() return MOCK.guild ~= nil end
 function GetGuildInfo(u) return MOCK.guild end
 function GetNumGuildMembers() return #MOCK.roster end
+function GetGuildRosterLastOnline(i) return 0, 1, 2, 3 end
+function GetMouseFocus() return MOCK.focus end
+Enum = { ClubType = { BattleNet = 0, Character = 1, Guild = 2, Other = 3 } }
 function GetGuildRosterInfo(i) local r = MOCK.roster[i]; if r then return r[1], "Member", 1, 60, "Warrior", "Orgrimmar", "" end end
 C_GuildInfo = { GuildRoster = function() MOCK.rosterRequested = true end }
 -- Bags

@@ -29,3 +29,35 @@ MOCK.roster = { {"Garrett-LivingFlame"}, {"Alice-LivingFlame"}, {"Zed-LivingFlam
 MOCK.fire("GUILD_ROSTER_UPDATE")
 check(g.Bob.removed == true and g.Zed, "left/joined detected")
 for _, p in ipairs(MOCK.printed) do out("   printed: " .. p) end
+
+-- Classic guild frame tooltip
+local function lines() return table.concat(GameTooltip._text_lines or {}, "|") end
+GameTooltip:SetOwner(UIParent)
+GameTooltipTextLeft1:SetText("Guild Member Options")
+GameTooltip:AddLine("Guild Member Options"); GameTooltip:AddLine("x")
+MOCK.focus = { guildIndex = 1 }
+GameTooltip:Show()
+check(lines():find("|Garrett|Member since: ") and lines():find("Last seen on: 1 M, 2 D, 3 H ago"), "classic tooltip gets join info")
+
+-- Secret title text is left alone
+issecretvalue = function(v) return true end
+GameTooltip:SetOwner(UIParent)
+GameTooltip:Show()
+check(GameTooltip:NumLines() == 0, "secret tooltip text ignored")
+issecretvalue = nil
+
+-- Communities roster tooltip (WoW Forever)
+GameTooltipTextLeft1:SetText("Alice")
+MOCK.focus = nil
+local clubType = Enum.ClubType.Guild
+local row = {
+  GetMemberInfo = function() return { name = "Alice-LivingFlame" } end,
+  GetMemberList = function() return { GetSelectedClubInfo = function() return { clubType = clubType } end } end,
+}
+GameTooltip:SetOwner(row); GameTooltip:AddLine("Alice")
+GameTooltip:Show()
+check(lines() == "Alice|Member since: " .. g.Alice.created .. "|Last seen on: Now", "communities tooltip gets join info")
+clubType = Enum.ClubType.Character
+GameTooltip:SetOwner(row); GameTooltip:AddLine("Alice")
+GameTooltip:Show()
+check(GameTooltip:NumLines() == 1, "non-guild community ignored")

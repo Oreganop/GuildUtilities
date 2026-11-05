@@ -123,35 +123,75 @@ local function getCanonicalLastOnline(years, months, days, hours)
     return table.concat(parts, ', ') .. ' ago'
 end
 
-hooksecurefunc(GameTooltip, "Show", function(self)
-    --Getting started:
-    -- https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/225832-how-to-edit-a-certain-tooltip-where-do-i-begin
+local function isSecret(v)
+    return issecretvalue ~= nil and issecretvalue(v)
+end
+
+-- Classic Era guild frame: the "Guild Member Options" tooltip over a roster button.
+-- Returns name, last online (years, months, days, hours), whether to prefix the name line.
+local function classicGuildMember(tooltip)
     local title = _G["GameTooltipTextLeft1"]
     local text = title and title:GetText()
     -- Retail-engine clients can hand back secret tooltip text (e.g. world units); comparing it taints us.
-    if not text or (issecretvalue and issecretvalue(text)) or text ~= 'Guild Member Options' then
-        return -- Not the tooltip we want.
+    if not text or isSecret(text) or text ~= 'Guild Member Options' then
+        return nil -- Not the tooltip we want.
     end
-
-    if GameTooltip:NumLines() > 2 then
-        return -- We've already edited. Do not double tap.
+    if tooltip:NumLines() > 2 then
+        return nil -- We've already edited. Do not double tap.
     end
-
     local cursor = Compat.GetMouseFocus();
     if not cursor or not cursor.guildIndex then
-        return
+        return nil
+    end
+    local name = GetGuildRosterInfo(cursor.guildIndex)
+    return name, GetGuildRosterLastOnline(cursor.guildIndex)
+end
+
+-- Retail-style Communities roster (WoW Forever): the tooltip owner is a member list row.
+local function communitiesGuildMember(tooltip)
+    local owner = tooltip:GetOwner()
+    if not owner or type(owner.GetMemberInfo) ~= "function" then
+        return nil
+    end
+    local list = owner.GetMemberList and owner:GetMemberList()
+    local club = list and list.GetSelectedClubInfo and list:GetSelectedClubInfo()
+    if not club or not Enum or not Enum.ClubType or club.clubType ~= Enum.ClubType.Guild then
+        return nil -- A non-guild community.
+    end
+    local info = owner:GetMemberInfo()
+    if not info or not info.name then
+        return nil
+    end
+    return info.name, info.lastOnlineYear, info.lastOnlineMonth, info.lastOnlineDay, info.lastOnlineHour
+end
+
+local adding = false
+
+hooksecurefunc(GameTooltip, "Show", function(self)
+    --Getting started:
+    -- https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/225832-how-to-edit-a-certain-tooltip-where-do-i-begin
+    if adding then
+        return -- Our own Show() below.
     end
 
-    local name = Util.CanonicalPlayerName(GetGuildRosterInfo(cursor.guildIndex))
+    local communities = false
+    local name, years, months, days, hours = classicGuildMember(self)
+    if not name then
+        name, years, months, days, hours = communitiesGuildMember(self)
+        communities = true
+    end
+    name = Util.CanonicalPlayerName(name)
     local entry = Roster.GetMember(name)
     if not entry then
         return
     end
 
-    GameTooltip:AddLine(name)
-    GameTooltip:AddLine('Member since: '..entry.created)
-    GameTooltip:AddLine('Last seen on: '..
-        getCanonicalLastOnline(GetGuildRosterLastOnline(cursor.guildIndex))
-    )
-    GameTooltip:Show()
+    if not communities then
+        self:AddLine(name) -- The Communities tooltip already leads with the name.
+    end
+    self:AddLine('Member since: '..entry.created)
+    self:AddLine('Last seen on: '..getCanonicalLastOnline(years, months, days, hours))
+    adding = true
+    self:Show()
+    adding = false
 end)
