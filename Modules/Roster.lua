@@ -127,7 +127,9 @@ hooksecurefunc(GameTooltip, "Show", function(self)
     --Getting started:
     -- https://authors.curseforge.com/forums/world-of-warcraft/general-chat/lua-code-discussion/225832-how-to-edit-a-certain-tooltip-where-do-i-begin
     local title = _G["GameTooltipTextLeft1"]
-    if not title or title:GetText() ~= 'Guild Member Options' then
+    local text = title and title:GetText()
+    -- Retail-engine clients can hand back secret tooltip text (e.g. world units); comparing it taints us.
+    if not text or (issecretvalue and issecretvalue(text)) or text ~= 'Guild Member Options' then
         return -- Not the tooltip we want.
     end
 
